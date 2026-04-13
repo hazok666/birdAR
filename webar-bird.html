@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Hidden Layer — Innovation Day London</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+    color: #fff;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Landing screen ── */
+  #landing {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: #0a0a0a;
+    z-index: 100;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  #landing .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    margin-bottom: 2rem;
+  }
+
+  #landing h1 {
+    font-size: clamp(28px, 7vw, 48px);
+    font-weight: 300;
+    line-height: 1.2;
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+
+  #landing h1 em {
+    font-style: italic;
+    color: rgba(255,220,80,1);
+  }
+
+  #landing p {
+    font-size: 15px;
+    color: rgba(255,255,255,0.5);
+    max-width: 280px;
+    line-height: 1.6;
+    margin-bottom: 2.5rem;
+  }
+
+  #start-btn {
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 100px;
+    padding: 14px 36px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+  }
+
+  #start-btn:active { transform: scale(0.97); }
+
+  #landing .brand {
+    position: absolute;
+    bottom: 2rem;
+    font-size: 11px;
+    color: rgba(255,255,255,0.25);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── AR screen ── */
+  #ar-screen {
+    position: fixed; inset: 0;
+    display: none;
+  }
+
+  /* Live camera feed */
+  #camera-feed {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  /* Canvas where we composite bird */
+  #ar-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* Hidden: source video + processing canvas */
+  #bird-video {
+    display: none;
+    /* Replace src with your actual bird video URL */
+  }
+  #process-canvas { display: none; }
+
+  /* UI overlay */
+  #hud {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  #hud .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.25rem 0;
+  }
+
+  #hud .pill {
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: 0.05em;
+  }
+
+  #hud .close-btn {
+    pointer-events: all;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    border: 0.5px solid rgba(255,255,255,0.15);
+    border-radius: 100px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+  }
+
+  #hud .bottom-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    padding: 0 1.25rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  #hud .hint {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+  }
+
+  #share-btn {
+    pointer-events: all;
+    background: rgba(255,255,255,0.12);
+    backdrop-filter: blur(8px);
+    border: 0.5px solid rgba(255,255,255,0.3);
+    border-radius: 100px;
+    padding: 12px 28px;
+    font-size: 14px;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+
+  #share-btn:active { transform: scale(0.97); }
+
+  /* Tap ripple */
+  .ripple {
+    position: absolute;
+    border: 1.5px solid rgba(255,220,80,0.6);
+    border-radius: 50%;
+    animation: ripple 0.6s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes ripple {
+    from { width: 0; height: 0; opacity: 1; transform: translate(-50%,-50%); }
+    to   { width: 80px; height: 80px; opacity: 0; transform: translate(-50%,-50%); }
+  }
+
+  /* Permission / error screen */
+  #permission-screen {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0a0a0a;
+    z-index: 200;
+    padding: 2rem;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  #permission-screen p {
+    color: rgba(255,255,255,0.6);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 280px;
+  }
+
+  #permission-screen button {
+    background: #fff;
+    color: #000;
+    border: none;
+    border-radius: 100px;
+    padding: 12px 32px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Landing ── -->
+<div id="landing">
+  <p class="eyebrow">Innovation Day London · Barbican</p>
+  <h1>The conservatory<br>you can see is<br><em>only half of it.</em></h1>
+  <p>Point your phone at the pathway markers to reveal what's hidden.</p>
+  <button id="start-btn">Reveal the hidden layer</button>
+  <p class="brand">EPAM · Empathy Lab</p>
+</div>
+
+<!-- ── Permission error ── -->
+<div id="permission-screen">
+  <p>Camera access is needed to show the hidden layer.</p>
+  <p style="font-size:13px; color:rgba(255,255,255,0.35);">Check your browser settings and allow camera, then tap below.</p>
+  <button onclick="startAR()">Try again</button>
+</div>
+
+<!-- ── AR screen ── -->
+<div id="ar-screen">
+  <video id="camera-feed" autoplay playsinline muted></video>
+  <canvas id="ar-canvas"></canvas>
+
+  <!-- Source bird video — replace src with your actual file or CDN URL -->
+  <video id="bird-video"
+    src="YOUR_BIRD_VIDEO.mp4"
+    loop autoplay muted playsinline
+    crossorigin="anonymous">
+  </video>
+
+  <!-- Off-screen canvas for chroma key processing -->
+  <canvas id="process-canvas"></canvas>
+
+  <div id="hud">
+    <div class="top-bar">
+      <span class="pill">Hidden Layer</span>
+      <button class="close-btn" onclick="closeAR()">✕ Exit</button>
+    </div>
+    <div class="bottom-bar">
+      <p class="hint" id="hint-text">Move slowly through the conservatory</p>
+      <button id="share-btn" onclick="captureShare()">📷 Capture moment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const landing       = document.getElementById('landing');
+const permScreen    = document.getElementById('permission-screen');
+const arScreen      = document.getElementById('ar-screen');
+const cameraFeed    = document.getElementById('camera-feed');
+const arCanvas      = document.getElementById('ar-canvas');
+const birdVideo     = document.getElementById('bird-video');
+const processCanvas = document.getElementById('process-canvas');
+const ctx           = arCanvas.getContext('2d');
+const pCtx          = processCanvas.getContext('2d', { willReadFrequently: true });
+
+let cameraStream    = null;
+let animFrame       = null;
+let birdX           = 0.5;   // normalized 0–1
+let birdY           = 0.4;
+let birdScale       = 0.45;  // fraction of screen width
+let targetX         = 0.5;
+let targetY         = 0.4;
+let motionX         = 0;
+let motionY         = 0;
+let birdOpacity     = 0;
+let fadeIn          = false;
+let frame           = 0;
+
+// ── Chroma key config ──────────────────────────────────────────────────────
+// Removes near-white pixels from the bird video
+const CHROMA_THRESHOLD = 200;  // pixel R,G,B all above this → transparent
+const EDGE_FEATHER     = 30;   // how far from threshold to start feathering
+
+// ── Start ──────────────────────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', () => {
+  landing.style.display = 'none';
+  startAR();
+});
+
+async function startAR() {
+  permScreen.style.display = 'none';
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false
+    });
+    cameraFeed.srcObject = cameraStream;
+    await cameraFeed.play();
+    arScreen.style.display = 'block';
+    birdVideo.play().catch(() => {});
+    setTimeout(() => { fadeIn = true; }, 800);
+    setupMotion();
+    resize();
+    window.addEventListener('resize', resize);
+    loop();
+  } catch (e) {
+    permScreen.style.display = 'flex';
+  }
+}
+
+function closeAR() {
+  if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+  cancelAnimationFrame(animFrame);
+  arScreen.style.display = 'none';
+  landing.style.display  = 'flex';
+}
+
+// ── Canvas sizing ──────────────────────────────────────────────────────────
+function resize() {
+  arCanvas.width  = window.innerWidth;
+  arCanvas.height = window.innerHeight;
+}
+
+// ── Device motion → gentle bird drift ─────────────────────────────────────
+function setupMotion() {
+  if (!window.DeviceMotionEvent) return;
+
+  // iOS 13+ requires permission
+  if (typeof DeviceMotionEvent.requestPermission === 'function') {
+    DeviceMotionEvent.requestPermission().catch(() => {});
+  }
+
+  window.addEventListener('devicemotion', (e) => {
+    const acc = e.accelerationIncludingGravity;
+    if (!acc) return;
+    motionX = (acc.x || 0) * 0.004;
+    motionY = (acc.y || 0) * 0.004;
+  });
+}
+
+// ── Tap → bird reacts ─────────────────────────────────────────────────────
+arScreen.addEventListener('click', (e) => {
+  targetX = e.clientX / window.innerWidth;
+  targetY = e.clientY / window.innerHeight;
+  spawnRipple(e.clientX, e.clientY);
+  document.getElementById('hint-text').textContent = 'The bird sees you.';
+  setTimeout(() => {
+    document.getElementById('hint-text').textContent = 'Move slowly through the conservatory';
+  }, 2500);
+});
+
+function spawnRipple(x, y) {
+  const r = document.createElement('div');
+  r.className = 'ripple';
+  r.style.left = x + 'px';
+  r.style.top  = y + 'px';
+  arScreen.appendChild(r);
+  r.addEventListener('animationend', () => r.remove());
+}
+
+// ── Main render loop ───────────────────────────────────────────────────────
+function loop() {
+  animFrame = requestAnimationFrame(loop);
+  frame++;
+
+  const W = arCanvas.width;
+  const H = arCanvas.height;
+
+  // Clear
+  ctx.clearRect(0, 0, W, H);
+
+  // Gentle bird drift with motion
+  const driftX = Math.sin(frame * 0.008) * 0.04 + motionX;
+  const driftY = Math.cos(frame * 0.010) * 0.025 + motionY;
+  targetX += driftX * 0.1;
+  targetY += driftY * 0.1;
+  targetX = Math.max(0.15, Math.min(0.85, targetX));
+  targetY = Math.max(0.15, Math.min(0.75, targetY));
+
+  // Lerp bird position
+  birdX += (targetX - birdX) * 0.04;
+  birdY += (targetY - birdY) * 0.04;
+
+  // Fade in
+  if (fadeIn && birdOpacity < 1) birdOpacity = Math.min(1, birdOpacity + 0.015);
+
+  if (birdOpacity <= 0 || birdVideo.readyState < 2) return;
+
+  // Draw bird video → off-screen canvas for chroma key
+  const vw = birdVideo.videoWidth;
+  const vh = birdVideo.videoHeight;
+  if (!vw || !vh) return;
+
+  processCanvas.width  = vw;
+  processCanvas.height = vh;
+  pCtx.drawImage(birdVideo, 0, 0, vw, vh);
+
+  const imageData = pCtx.getImageData(0, 0, vw, vh);
+  const data = imageData.data;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i+1], b = data[i+2];
+    // Detect near-white
+    const min = Math.min(r, g, b);
+    if (min > CHROMA_THRESHOLD) {
+      data[i+3] = 0; // fully transparent
+    } else if (min > CHROMA_THRESHOLD - EDGE_FEATHER) {
+      // Feather the edge
+      const alpha = 1 - (min - (CHROMA_THRESHOLD - EDGE_FEATHER)) / EDGE_FEATHER;
+      data[i+3] = Math.round(alpha * 255);
+    }
+  }
+  pCtx.putImageData(imageData, 0, 0);
+
+  // Draw chromakeyed bird onto AR canvas
+  const birdW = W * birdScale;
+  const birdH = birdW * (vh / vw);
+  const drawX = birdX * W - birdW / 2;
+  const drawY = birdY * H - birdH / 2;
+
+  // Subtle shadow to ground the bird
+  ctx.save();
+  ctx.globalAlpha = birdOpacity * 0.18;
+  ctx.filter = 'blur(12px)';
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.ellipse(birdX * W, birdY * H + birdH * 0.42, birdW * 0.3, birdH * 0.06, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Bird
+  ctx.save();
+  ctx.globalAlpha = birdOpacity;
+  ctx.filter = 'none';
+  ctx.drawImage(processCanvas, drawX, drawY, birdW, birdH);
+  ctx.restore();
+}
+
+// ── Capture / share ────────────────────────────────────────────────────────
+async function captureShare() {
+  // Composite camera + AR canvas into a single image
+  const offscreen = document.createElement('canvas');
+  offscreen.width  = arCanvas.width;
+  offscreen.height = arCanvas.height;
+  const oc = offscreen.getContext('2d');
+
+  // Draw camera frame
+  oc.drawImage(cameraFeed, 0, 0, offscreen.width, offscreen.height);
+  // Draw bird overlay
+  oc.drawImage(arCanvas, 0, 0);
+  // Brand watermark
+  oc.fillStyle = 'rgba(255,255,255,0.55)';
+  oc.font = '12px -apple-system, sans-serif';
+  oc.textAlign = 'right';
+  oc.fillText('Innovation Day London · Barbican · Empathy Lab', offscreen.width - 16, offscreen.height - 16);
+
+  offscreen.toBlob(async (blob) => {
+    const file = new File([blob], 'hidden-layer.jpg', { type: 'image/jpeg' });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'The Hidden Layer',
+          text: 'The conservatory you can see is only half of it. #InnovationDay #EmpathyLab'
+        });
+      } catch {}
+    } else {
+      // Fallback: download
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'hidden-layer.jpg';
+      a.click();
+    }
+  }, 'image/jpeg', 0.9);
+}
+</script>
+</body>
+</html>
